@@ -217,6 +217,7 @@ resource "helm_release" "kube_prometheus_stack" {
   depends_on = [var.cluster_dependency]
 }
 
+/*
 # ArgoCD for GitOps
 resource "helm_release" "argocd" {
   count            = var.enable_argocd ? 1 : 0
@@ -260,7 +261,7 @@ resource "helm_release" "argocd" {
   ]
 
   depends_on = [var.cluster_dependency]
-}
+} */
 
 # Velero for backup (if not using the separate backup module)
 resource "helm_release" "velero" {
