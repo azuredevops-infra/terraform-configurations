@@ -30,7 +30,7 @@ output "helm_releases" {
     cert_manager         = var.enable_cert_manager ? helm_release.cert_manager[0].name : null
     external_dns         = var.enable_external_dns ? helm_release.external_dns[0].name : null
     prometheus_stack     = var.enable_prometheus_stack ? helm_release.kube_prometheus_stack[0].name : null
-    argocd              = var.enable_argocd ? helm_release.argocd[0].name : null
+    #argocd              = var.enable_argocd ? helm_release.argocd[0].name : null
     velero              = var.enable_velero ? helm_release.velero[0].name : null
     cluster_autoscaler  = var.enable_cluster_autoscaler ? helm_release.cluster_autoscaler[0].name : null
     keda                = var.enable_keda ? helm_release.keda[0].name : null
