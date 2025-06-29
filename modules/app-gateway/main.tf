@@ -14,6 +14,14 @@ resource "azurerm_public_ip" "appgw" {
   tags                = var.tags
 }
 
+# User Assigned Identity for Application Gateway
+resource "azurerm_user_assigned_identity" "appgw" {
+  name                = "${var.prefix}-${var.environment}-appgw-identity"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tags                = var.tags
+}
+
 # WAF Policy - Fixed custom rules
 resource "azurerm_web_application_firewall_policy" "this" {
   count               = var.enable_waf ? 1 : 0
@@ -239,17 +247,18 @@ resource "azurerm_application_gateway" "this" {
   }
 
   identity {
-    type = "SystemAssigned"
+    type = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.appgw.id]
   }
 
   depends_on = [azurerm_key_vault_certificate.appgw]
 }
 
-# Grant Application Gateway access to Key Vault after it's created
+#Grant Application Gateway User Assigned Identity access to Key Vault
 resource "azurerm_key_vault_access_policy" "appgw" {
   key_vault_id = var.key_vault_id
   tenant_id    = data.azurerm_client_config.current.tenant_id
-  object_id    = azurerm_application_gateway.this.identity[0].principal_id
+  object_id    = azurerm_user_assigned_identity.appgw.principal_id  
 
   certificate_permissions = [
     "Get"
@@ -259,5 +268,5 @@ resource "azurerm_key_vault_access_policy" "appgw" {
     "Get"
   ]
 
-  depends_on = [azurerm_application_gateway.this]
+  depends_on = [azurerm_user_assigned_identity.appgw]
 }
