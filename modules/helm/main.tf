@@ -40,7 +40,7 @@ resource "helm_release" "dynamic_releases" {
   version          = each.value.version
   namespace        = each.value.namespace
   create_namespace = each.value.create_namespace
-  timeout          = 600
+  timeout          = 2000
 
   # Handle values from template file
   values = each.value.values_file != "" ? [
@@ -49,7 +49,7 @@ resource "helm_release" "dynamic_releases" {
       {
         cluster_name = var.cluster_name
         environment  = var.environment
-        domain_name  = "azuredev.com"  # You can make this a variable
+        domain_name  = "test.com"  # You can make this a variable
       }
     ))
   ] : each.value.values
@@ -82,7 +82,7 @@ resource "helm_release" "nginx_ingress" {
         replicaCount = var.nginx_ingress_replica_count
         service = {
           type = var.nginx_ingress_service_type
-          annotations = var.nginx_ingress_service_annotations
+          annotations = var.nginx_ingress_service_annotations 
         }
         resources = var.nginx_ingress_resources
         nodeSelector = var.nginx_ingress_node_selector
@@ -216,52 +216,6 @@ resource "helm_release" "kube_prometheus_stack" {
 
   depends_on = [var.cluster_dependency]
 }
-
-/*
-# ArgoCD for GitOps
-resource "helm_release" "argocd" {
-  count            = var.enable_argocd ? 1 : 0
-  name             = "argocd"
-  repository       = "https://argoproj.github.io/argo-helm"
-  chart            = "argo-cd"
-  namespace        = var.argocd_namespace
-  create_namespace = true
-  version          = var.argocd_version
-  timeout          = 600
-
-  values = [
-    yamlencode({
-      global = {
-        image = {
-          tag = var.argocd_image_tag
-        }
-      }
-      server = {
-        service = {
-          type = var.argocd_server_service_type
-        }
-        ingress = {
-          enabled = var.argocd_server_ingress_enabled
-          annotations = var.argocd_server_ingress_annotations
-          hosts = var.argocd_server_ingress_hosts
-          tls = var.argocd_server_ingress_tls
-        }
-        resources = var.argocd_server_resources
-      }
-      controller = {
-        resources = var.argocd_controller_resources
-      }
-      repoServer = {
-        resources = var.argocd_repo_server_resources
-      }
-      dex = {
-        enabled = var.argocd_dex_enabled
-      }
-    })
-  ]
-
-  depends_on = [var.cluster_dependency]
-} */
 
 # Velero for backup (if not using the separate backup module)
 resource "helm_release" "velero" {
