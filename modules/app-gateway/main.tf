@@ -179,29 +179,40 @@ resource "azurerm_application_gateway" "this" {
     public_ip_address_id = azurerm_public_ip.appgw.id
   }
 
+  # Backend pool pointing to NGINX internal load balancer
   backend_address_pool {
-    name         = "${var.prefix}-${var.environment}-backend-pool"
-    ip_addresses = [var.aks_ingress_ip]
+    name         = "${var.prefix}-${var.environment}-nginx-backend"
+    ip_addresses = [var.aks_ingress_ip]  # Temporary - will update after NGINX deployment
   }
 
+  # HTTP Settings for NGINX
   backend_http_settings {
-    name                  = "${var.prefix}-${var.environment}-http-settings"
+    name                  = "${var.prefix}-${var.environment}-nginx-http-settings"
     cookie_based_affinity = "Disabled"
     path                  = "/"
     port                  = 80
     protocol              = "Http"
     request_timeout       = 60
+    host_name            = "harorbcomm.d01.hdcss.com"
+    pick_host_name_from_backend_address = false
+    probe_name           = "${var.prefix}-${var.environment}-nginx-probe"
   }
 
-  backend_http_settings {
-    name                  = "${var.prefix}-${var.environment}-https-settings"
-    cookie_based_affinity = "Disabled"
-    path                  = "/"
-    port                  = 443
-    protocol              = "Https"
-    request_timeout       = 60
+  # Health probe for NGINX
+  probe {
+    name                = "${var.prefix}-${var.environment}-nginx-probe"
+    protocol            = "Http"
+    path                = "/healthz"
+    host                = "harorbcomm.d01.hdcss.com"
+    interval            = 30
+    timeout             = 30
+    unhealthy_threshold = 3
+    match {
+      status_code = ["200"]
+    }
   }
 
+  # HTTP Listener
   http_listener {
     name                           = "${var.prefix}-${var.environment}-listener-http"
     frontend_ip_configuration_name = "${var.prefix}-${var.environment}-frontend-ip-configuration"
@@ -209,6 +220,7 @@ resource "azurerm_application_gateway" "this" {
     protocol                       = "Http"
   }
 
+  # HTTPS Listener
   http_listener {
     name                           = "${var.prefix}-${var.environment}-listener-https"
     frontend_ip_configuration_name = "${var.prefix}-${var.environment}-frontend-ip-configuration"
@@ -222,6 +234,29 @@ resource "azurerm_application_gateway" "this" {
     key_vault_secret_id = azurerm_key_vault_certificate.appgw.secret_id
   }
 
+  # PATH-BASED ROUTING CONFIGURATION
+  url_path_map {
+    name                               = "${var.prefix}-${var.environment}-path-map"
+    default_backend_address_pool_name  = "${var.prefix}-${var.environment}-nginx-backend"
+    default_backend_http_settings_name = "${var.prefix}-${var.environment}-nginx-http-settings"
+
+    # ArgoCD routing rule
+    path_rule {
+      name                       = "argocd-rule"
+      paths                      = ["/admin", "/admin/*"]
+      backend_address_pool_name  = "${var.prefix}-${var.environment}-nginx-backend"
+      backend_http_settings_name = "${var.prefix}-${var.environment}-nginx-http-settings"
+    }
+
+    # Keycloak routing rule  
+    path_rule {
+      name                       = "keycloak-rule"
+      paths                      = ["/auth", "/auth/*"]
+      backend_address_pool_name  = "${var.prefix}-${var.environment}-nginx-backend"
+      backend_http_settings_name = "${var.prefix}-${var.environment}-nginx-http-settings"
+    }
+  }
+
   # HTTP to HTTPS redirect
   redirect_configuration {
     name                 = "${var.prefix}-${var.environment}-redirect-config"
@@ -229,6 +264,7 @@ resource "azurerm_application_gateway" "this" {
     target_listener_name = "${var.prefix}-${var.environment}-listener-https"
   }
 
+  # HTTP request routing rule (redirect to HTTPS)
   request_routing_rule {
     name                        = "${var.prefix}-${var.environment}-request-routing-rule-http"
     rule_type                   = "Basic"
@@ -237,12 +273,12 @@ resource "azurerm_application_gateway" "this" {
     priority                    = 100
   }
 
+  # HTTPS request routing rule with path-based routing
   request_routing_rule {
     name                       = "${var.prefix}-${var.environment}-request-routing-rule-https"
-    rule_type                  = "Basic"
+    rule_type                  = "PathBasedRouting"
     http_listener_name         = "${var.prefix}-${var.environment}-listener-https"
-    backend_address_pool_name  = "${var.prefix}-${var.environment}-backend-pool"
-    backend_http_settings_name = "${var.prefix}-${var.environment}-https-settings"
+    url_path_map_name         = "${var.prefix}-${var.environment}-path-map"
     priority                   = 200
   }
 

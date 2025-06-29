@@ -41,7 +41,6 @@ resource "azurerm_firewall_network_rule_collection" "aks" {
     name                  = "allow-https"
     source_addresses      = [var.aks_subnet_cidr]
     destination_ports     = ["443"]
-    # Fixed: Remove location from service tag
     destination_addresses = ["AzureCloud"]
     protocols             = ["TCP"]
   }

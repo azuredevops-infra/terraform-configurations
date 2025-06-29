@@ -213,6 +213,7 @@ module "helm" {
   environment     = var.environment
   helm_releases   = var.helm_releases
   template_values = var.helm_template_values
+  template_vars   = var.helm_template_vars
   
   /* template_vars   = merge(
     var.helm_template_vars,

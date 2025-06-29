@@ -5,12 +5,13 @@ locals {
       config,
       {
         values = config.values_file != "" ? [
-          templatefile(config.values_file,
+          templatefile("${path.root}/${config.values_file}", merge(
+            var.template_vars,
             {
               cluster_name = var.cluster_name
               environment  = var.environment
             }
-          )
+          ) )
         ] : config.values != null ? config.values : []
       }
     )
@@ -49,7 +50,6 @@ resource "helm_release" "dynamic_releases" {
       {
         cluster_name = var.cluster_name
         environment  = var.environment
-        domain_name  = "test.com"  # You can make this a variable
       }
     ))
   ] : each.value.values
@@ -65,7 +65,8 @@ resource "helm_release" "dynamic_releases" {
 
   depends_on = [var.cluster_dependency]
 }
-# Nginx Ingress Controller
+
+# Nginx Ingress Controller with Internal Load Balancer
 resource "helm_release" "nginx_ingress" {
   count            = var.enable_nginx_ingress ? 1 : 0
   name             = "nginx-ingress"
@@ -81,15 +82,38 @@ resource "helm_release" "nginx_ingress" {
       controller = {
         replicaCount = var.nginx_ingress_replica_count
         service = {
-          type = var.nginx_ingress_service_type
-          annotations = var.nginx_ingress_service_annotations 
+          type = "LoadBalancer"
+          annotations = {
+            # CRITICAL: Internal Load Balancer Configuration
+            "service.beta.kubernetes.io/azure-load-balancer-internal" = "true"
+            "service.beta.kubernetes.io/azure-load-balancer-internal-subnet" = "oorja-dev-aks-subnet"
+          }
+          # Remove external configurations
+          externalTrafficPolicy = "Local"
+          loadBalancerSourceRanges = []
+        }
+        # NGINX Configuration for Application Gateway integration
+        config = {
+          "use-forwarded-headers" = "true"
+          "compute-full-forwarded-for" = "true"
+          "use-proxy-protocol" = "false"
+          "enable-real-ip" = "true"
+          "proxy-body-size" = "0"
+          "proxy-read-timeout" = "600"
+          "proxy-send-timeout" = "600"
+          "client-header-buffer-size" = "64k"
+          "large-client-header-buffers" = "4 64k"
+          "client-body-buffer-size" = "128k"
         }
         resources = var.nginx_ingress_resources
         nodeSelector = var.nginx_ingress_node_selector
         tolerations = var.nginx_ingress_tolerations
-        config = {
-          "use-forwarded-headers" = "true"
-          "compute-full-forwarded-for" = "true"
+        # Ensure NGINX can handle ingress traffic properly
+        ingressClassResource = {
+          name = "nginx"
+          enabled = true
+          default = true
+          controllerValue = "k8s.io/ingress-nginx"
         }
       }
       defaultBackend = {
@@ -100,7 +124,6 @@ resource "helm_release" "nginx_ingress" {
 
   depends_on = [var.cluster_dependency]
 }
-
 # Cert-Manager for SSL certificates
 resource "helm_release" "cert_manager" {
   count            = var.enable_cert_manager ? 1 : 0
