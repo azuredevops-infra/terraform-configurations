@@ -182,14 +182,14 @@ resource "azurerm_application_gateway" "this" {
   # Backend pool pointing to NGINX internal load balancer
   backend_address_pool {
     name         = "${var.prefix}-${var.environment}-nginx-backend"
-    ip_addresses = [var.aks_ingress_ip]  # Temporary - will update after NGINX deployment
+    ip_addresses = ["10.0.1.6"]
   }
 
   # HTTP Settings for NGINX
   backend_http_settings {
     name                  = "${var.prefix}-${var.environment}-nginx-http-settings"
     cookie_based_affinity = "Disabled"
-    path                  = "/"
+    #path                  = "/"
     port                  = 80
     protocol              = "Http"
     request_timeout       = 60

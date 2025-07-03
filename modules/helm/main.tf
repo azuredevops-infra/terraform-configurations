@@ -63,7 +63,7 @@ resource "helm_release" "dynamic_releases" {
     }
   }
 
-  depends_on = [var.cluster_dependency]
+  depends_on = [var.cluster_dependency, helm_release.nginx_ingress]
 }
 
 # Nginx Ingress Controller with Internal Load Balancer
@@ -86,7 +86,7 @@ resource "helm_release" "nginx_ingress" {
           annotations = {
             # CRITICAL: Internal Load Balancer Configuration
             "service.beta.kubernetes.io/azure-load-balancer-internal" = "true"
-            "service.beta.kubernetes.io/azure-load-balancer-internal-subnet" = "oorja-dev-aks-subnet"
+            "service.beta.kubernetes.io/azure-load-balancer-internal-subnet" = "${var.resource_group_name == "oorja-dev-rg" ? "oorja-dev-aks-subnet" : "aks-subnet"}"
           }
           # Remove external configurations
           externalTrafficPolicy = "Local"
@@ -114,6 +114,17 @@ resource "helm_release" "nginx_ingress" {
           enabled = true
           default = true
           controllerValue = "k8s.io/ingress-nginx"
+        }
+
+        # Add admission webhook configuration
+        admissionWebhooks = {
+          enabled = true
+          failurePolicy = "Fail"
+          port = 8443
+          certificate = "/usr/local/certificates/cert"
+          key = "/usr/local/certificates/key"
+          namespaceSelector = {}
+          objectSelector = {}
         }
       }
       defaultBackend = {
