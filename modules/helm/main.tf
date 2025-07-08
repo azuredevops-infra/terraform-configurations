@@ -220,6 +220,20 @@ resource "helm_release" "kube_prometheus_stack" {
           size = var.prometheus_grafana_persistence_size
         }
         resources = var.prometheus_grafana_resources
+        # Add Mimir as a data source to Grafana
+        additionalDataSources = var.enable_mimir ? [
+          {
+            name = "Mimir"
+            type = "prometheus"
+            url = "http://mimir-nginx.${var.observability_namespace}.svc.cluster.local"
+            access = "proxy"
+            isDefault = false
+            jsonData = {
+              timeInterval = "30s"
+              queryTimeout = "60s"
+            }
+          }
+        ] : []
       }
       prometheus = {
         prometheusSpec = {
@@ -237,6 +251,38 @@ resource "helm_release" "kube_prometheus_stack" {
             }
           }
           resources = var.prometheus_resources
+          #Remote write configuration to send metrics to Mimir
+          remoteWrite = var.enable_mimir ? [
+            {
+              url = "http://mimir-nginx.${var.observability_namespace}.svc.cluster.local/api/v1/push"
+              name = "mimir"
+              writeRelabelConfigs = [
+                {
+                  sourceLabels = ["__name__"]
+                  regex = "up|prometheus_build_info|prometheus_config_last_reload_successful|prometheus_notifications_.*|prometheus_rule_.*"
+                  action = "drop"
+                },
+                {
+                  sourceLabels = ["__name__"]
+                  regex = "prometheus_.*"
+                  action = "drop"
+                }
+              ]
+              queueConfig = {
+                capacity = 10000
+                maxShards = 1000
+                minShards = 1
+                maxSamplesPerSend = 2000
+                batchSendDeadline = "5s"
+                minBackoff = "30ms"
+                maxBackoff = "100ms"
+              }
+              metadataConfig = {
+                send = true
+                sendInterval = "30s"
+              }
+            }
+          ] : []
         }
       }
       alertmanager = {
@@ -250,6 +296,7 @@ resource "helm_release" "kube_prometheus_stack" {
 
   depends_on = [var.cluster_dependency]
 }
+
 
 # Velero for backup (if not using the separate backup module)
 resource "helm_release" "velero" {

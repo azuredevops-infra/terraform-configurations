@@ -168,6 +168,8 @@ module "monitoring" {
   enable_grafana              = var.enable_grafana
   enable_prometheus           = var.enable_prometheus
   enable_defender             = var.enable_defender
+  grafana_admin_users  = var.grafana_admin_users
+  grafana_viewer_users = var.grafana_viewer_users
   tags                        = var.tags
 }
 
@@ -214,6 +216,8 @@ module "helm" {
   helm_releases   = var.helm_releases
   template_values = var.helm_template_values
   template_vars   = var.helm_template_vars
+  enable_mimir             = var.enable_mimir
+  observability_namespace  = var.observability_namespace
   
   /* template_vars   = merge(
     var.helm_template_vars,
@@ -265,4 +269,48 @@ module "helm" {
 
   depends_on = [module.aks]
 
+}
+
+module "observability_stack" {
+  source = "./modules/observability"
+  count  = var.enable_observability_stack ? 1 : 0
+
+  prefix              = var.prefix
+  environment         = var.environment
+  cluster_name        = module.aks.cluster_name
+  resource_group_name = azurerm_resource_group.this.name
+  
+  # Storage configuration
+  storage_account_name = module.storage.storage_account_name
+  storage_account_key  = module.storage.primary_access_key
+  
+  # Component toggles
+  enable_loki           = var.enable_loki
+  enable_tempo          = var.enable_tempo
+  enable_mimir          = var.enable_mimir
+  enable_promtail       = var.enable_promtail
+  enable_otel_collector = var.enable_otel_collector
+  
+  # Configuration
+  namespace               = var.observability_namespace
+  loki_retention_period   = var.loki_retention_period
+  tempo_retention_period  = var.tempo_retention_period
+  mimir_retention_period  = var.mimir_retention_period
+  
+  # Storage sizes
+  loki_storage_size  = var.loki_storage_size
+  tempo_storage_size = var.tempo_storage_size
+  mimir_storage_size = var.mimir_storage_size
+  
+  # Resource configuration
+  loki_resources  = var.loki_resources
+  tempo_resources = var.tempo_resources
+  mimir_resources = var.mimir_resources
+  
+  # Cluster dependency
+  cluster_dependency = module.aks.cluster_id
+  
+  tags = var.tags
+  
+  depends_on = [module.aks, module.storage]
 }

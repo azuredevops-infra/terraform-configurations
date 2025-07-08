@@ -120,37 +120,57 @@ resource "azurerm_monitor_metric_alert" "node_memory" {
   tags = var.tags
 }
 
-# Azure Monitor for Prometheus
+# Azure Monitor Workspace (required for Grafana integration)
+resource "azurerm_monitor_workspace" "this" {
+  count               = var.enable_grafana || var.enable_prometheus ? 1 : 0
+  name                = "${var.prefix}-${var.environment}-amw"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tags                = var.tags
+}
+
+# Azure Monitor for Prometheus - FIXED VERSION
+resource "azurerm_monitor_data_collection_endpoint" "aks_metrics" {
+  count               = var.enable_prometheus ? 1 : 0
+  name                = "${var.prefix}-${var.environment}-aks-metrics-dce"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  kind                = "Linux"
+  tags                = var.tags
+}
+
 resource "azurerm_monitor_data_collection_rule" "aks_metrics" {
   count               = var.enable_prometheus ? 1 : 0
-  name                = "${var.prefix}-${var.environment}-aks-metrics"
+  name                = "${var.prefix}-${var.environment}-aks-metrics-dcr"
   resource_group_name = var.resource_group_name
   location            = var.location
   tags                = var.tags
 
+  data_collection_endpoint_id = azurerm_monitor_data_collection_endpoint.aks_metrics[0].id
+
   destinations {
-    log_analytics {
-      workspace_resource_id = azurerm_log_analytics_workspace.this.id
-      name                  = "aks-metrics"
+    monitor_account {
+      monitor_account_id = azurerm_monitor_workspace.this[0].id
+      name              = "MonitoringAccount1"
     }
   }
 
   data_sources {
     prometheus_forwarder {
-      name    = "aks-prometheus"
+      name    = "PrometheusDataSource"
       streams = ["Microsoft-PrometheusMetrics"]
     }
   }
 
   data_flow {
-    destinations = ["aks-metrics"]
+    destinations = ["MonitoringAccount1"]
     streams      = ["Microsoft-PrometheusMetrics"]
   }
 }
 
 resource "azurerm_monitor_data_collection_rule_association" "aks_metrics" {
   count                   = var.enable_prometheus ? 1 : 0
-  name                    = "${var.prefix}-${var.environment}-aks-metrics-association"
+  name                    = "${var.prefix}-${var.environment}-aks-metrics-dcra"
   target_resource_id      = var.aks_cluster_id
   data_collection_rule_id = azurerm_monitor_data_collection_rule.aks_metrics[0].id
 }
@@ -161,18 +181,63 @@ resource "azurerm_dashboard_grafana" "this" {
   name                  = "${var.prefix}-${var.environment}-grafana"
   resource_group_name   = var.resource_group_name
   location              = var.location
-  grafana_major_version = 11
+  grafana_major_version = 11  
 
   identity {
     type = "SystemAssigned"
   }
 
+  #Azure Monitor Workspace
   azure_monitor_workspace_integrations {
-    resource_id = azurerm_log_analytics_workspace.this.id
+    resource_id = azurerm_monitor_workspace.this[0].id
   }
 
   tags = var.tags
 }
+
+# Grant Grafana access to read monitoring data
+resource "azurerm_role_assignment" "grafana_monitoring_reader" {
+  count                = var.enable_grafana ? 1 : 0
+  scope                = "/subscriptions/${data.azurerm_client_config.current.subscription_id}"
+  role_definition_name = "Monitoring Reader"
+  principal_id         = azurerm_dashboard_grafana.this[0].identity[0].principal_id
+}
+
+# Grant Grafana access to Azure Monitor Workspace
+resource "azurerm_role_assignment" "grafana_monitor_workspace_reader" {
+  count                = var.enable_grafana ? 1 : 0
+  scope                = azurerm_monitor_workspace.this[0].id
+  role_definition_name = "Monitoring Data Reader"
+  principal_id         = azurerm_dashboard_grafana.this[0].identity[0].principal_id
+}
+
+# Get current Azure configuration
+data "azurerm_client_config" "current" {}
+
+# Assign current user as Grafana Admin
+resource "azurerm_role_assignment" "grafana_admin_current_user" {
+  count                = var.enable_grafana ? 1 : 0
+  scope                = azurerm_dashboard_grafana.this[0].id
+  role_definition_name = "Grafana Admin"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# Optional: Add additional users/groups
+resource "azurerm_role_assignment" "grafana_admin_users" {
+  for_each             = var.enable_grafana ? toset(var.grafana_admin_users) : []
+  scope                = azurerm_dashboard_grafana.this[0].id
+  role_definition_name = "Grafana Admin"
+  principal_id         = each.value
+}
+
+resource "azurerm_role_assignment" "grafana_viewer_users" {
+  for_each             = var.enable_grafana ? toset(var.grafana_viewer_users) : []
+  scope                = azurerm_dashboard_grafana.this[0].id
+  role_definition_name = "Grafana Viewer"
+  principal_id         = each.value
+}
+
+
 
 # Enable Defender for Cloud
 resource "azurerm_security_center_subscription_pricing" "kubernetes" {

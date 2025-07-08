@@ -64,3 +64,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "grafana_admin_users" {
+  description = "List of user object IDs to grant Grafana Admin access"
+  type        = list(string)
+  default     = []
+}
+
+variable "grafana_viewer_users" {
+  description = "List of user object IDs to grant Grafana Viewer access"
+  type        = list(string)
+  default     = []
+}

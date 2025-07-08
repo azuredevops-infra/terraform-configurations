@@ -286,6 +286,24 @@ variable "enable_grafana" {
   default     = true
 }
 
+variable "enable_grafana_datasources" {
+  description = "Enable automatic Grafana data source configuration"
+  type        = bool
+  default     = true
+}
+
+variable "grafana_admin_users" {
+  description = "List of user object IDs to grant Grafana Admin access"
+  type        = list(string)
+  default     = []
+}
+
+variable "grafana_viewer_users" {
+  description = "List of user object IDs to grant Grafana Viewer access"
+  type        = list(string)
+  default     = []
+}
+
 variable "enable_prometheus" {
   description = "Enable Azure Monitor managed Prometheus"
   type        = bool
@@ -656,4 +674,159 @@ variable "k8s_role_bindings" {
     }))
   }))
   default = {}
+}
+
+# Observability Stack Configuration
+variable "enable_observability_stack" {
+  description = "Enable comprehensive observability stack (Loki, Tempo, Mimir)"
+  type        = bool
+  default     = false
+}
+
+variable "observability_namespace" {
+  description = "Namespace for observability stack"
+  type        = string
+  default     = "observability"
+}
+
+# Loki Configuration
+variable "enable_loki" {
+  description = "Enable Loki for log aggregation"
+  type        = bool
+  default     = true
+}
+
+variable "loki_retention_period" {
+  description = "Log retention period for Loki"
+  type        = string
+  default     = "720h"  # 30 days
+}
+
+variable "loki_storage_size" {
+  description = "Storage size for Loki"
+  type        = string
+  default     = "100Gi"
+}
+
+variable "loki_resources" {
+  description = "Resource limits for Loki"
+  type = object({
+    requests = object({
+      cpu    = string
+      memory = string
+    })
+    limits = object({
+      cpu    = string
+      memory = string
+    })
+  })
+  default = {
+    requests = {
+      cpu    = "500m"
+      memory = "1Gi"
+    }
+    limits = {
+      cpu    = "1000m"
+      memory = "2Gi"
+    }
+  }
+}
+
+# Tempo Configuration
+variable "enable_tempo" {
+  description = "Enable Tempo for distributed tracing"
+  type        = bool
+  default     = true
+}
+
+variable "tempo_retention_period" {
+  description = "Trace retention period for Tempo"
+  type        = string
+  default     = "168h"  # 7 days
+}
+
+variable "tempo_storage_size" {
+  description = "Storage size for Tempo"
+  type        = string
+  default     = "50Gi"
+}
+
+variable "tempo_resources" {
+  description = "Resource limits for Tempo"
+  type = object({
+    requests = object({
+      cpu    = string
+      memory = string
+    })
+    limits = object({
+      cpu    = string
+      memory = string
+    })
+  })
+  default = {
+    requests = {
+      cpu    = "500m"
+      memory = "1Gi"
+    }
+    limits = {
+      cpu    = "1000m"
+      memory = "2Gi"
+    }
+  }
+}
+
+# Mimir Configuration
+variable "enable_mimir" {
+  description = "Enable Mimir for long-term metrics storage"
+  type        = bool
+  default     = true
+}
+
+variable "mimir_retention_period" {
+  description = "Metrics retention period for Mimir"
+  type        = string
+  default     = "8760h"  # 1 year
+}
+
+variable "mimir_storage_size" {
+  description = "Storage size for Mimir"
+  type        = string
+  default     = "200Gi"
+}
+
+variable "mimir_resources" {
+  description = "Resource limits for Mimir"
+  type = object({
+    requests = object({
+      cpu    = string
+      memory = string
+    })
+    limits = object({
+      cpu    = string
+      memory = string
+    })
+  })
+  default = {
+    requests = {
+      cpu    = "1000m"
+      memory = "2Gi"
+    }
+    limits = {
+      cpu    = "2000m"
+      memory = "4Gi"
+    }
+  }
+}
+
+# Additional Components
+variable "enable_promtail" {
+  description = "Enable Promtail for log collection"
+  type        = bool
+  default     = true
+}
+
+variable "enable_otel_collector" {
+  description = "Enable OpenTelemetry Collector"
+  type        = bool
+  default     = true
 }

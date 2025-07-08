@@ -699,3 +699,14 @@ variable "template_vars" {
   default     = {}
 }
 
+variable "enable_mimir" {
+  description = "Enable Mimir integration with Prometheus"
+  type        = bool
+  default     = false
+}
+
+variable "observability_namespace" {
+  description = "Namespace where observability stack is deployed"
+  type        = string
+  default     = "observability"
+}

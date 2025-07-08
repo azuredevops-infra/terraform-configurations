@@ -60,7 +60,6 @@ provider "helm" {
   }
 }
 
-
 /*
 provider "kubernetes" {
   host                   = try(module.aks.host, "https://127.0.0.1")
