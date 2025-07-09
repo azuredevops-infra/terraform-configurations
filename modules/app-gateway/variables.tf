@@ -64,3 +64,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "grafana_fqdn" {
+  description = "The Grafana FQDN (without https://)"
+  type        = string
+  default     = ""
+}

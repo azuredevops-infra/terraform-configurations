@@ -188,6 +188,7 @@ module "app_gateway" {
   key_vault_id            = module.key_vault.key_vault_id
   enable_waf              = var.enable_waf
   waf_mode                = var.waf_mode
+  grafana_fqdn            = var.grafana_fqdn
   tags                    = var.tags
 }
 

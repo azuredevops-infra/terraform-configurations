@@ -830,3 +830,9 @@ variable "enable_otel_collector" {
   type        = bool
   default     = true
 }
+
+variable "grafana_fqdn" {
+  description = "Grafana FQDN for Application Gateway routing"
+  type        = string
+  default     = ""
+}

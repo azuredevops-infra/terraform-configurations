@@ -22,7 +22,7 @@ resource "azurerm_user_assigned_identity" "appgw" {
   tags                = var.tags
 }
 
-# WAF Policy - Fixed custom rules
+# WAF Policy
 resource "azurerm_web_application_firewall_policy" "this" {
   count               = var.enable_waf ? 1 : 0
   name                = "${var.prefix}-${var.environment}-waf-policy"
@@ -45,7 +45,7 @@ resource "azurerm_web_application_firewall_policy" "this" {
     }
   }
 
-  # Fixed custom rules - removed problematic rate limit rule for now
+  #custom rules
   custom_rules {
     name      = "GeoBlockRule"
     priority  = 1
@@ -185,6 +185,12 @@ resource "azurerm_application_gateway" "this" {
     ip_addresses = ["10.0.1.6"]
   }
 
+/* #Grafana backend pool
+  backend_address_pool {
+    name = "${var.prefix}-${var.environment}-grafana-backend"
+    fqdns = [var.grafana_fqdn]
+  } */
+
   # HTTP Settings for NGINX
   backend_http_settings {
     name                  = "${var.prefix}-${var.environment}-nginx-http-settings"
@@ -197,6 +203,18 @@ resource "azurerm_application_gateway" "this" {
     pick_host_name_from_backend_address = false
     probe_name           = "${var.prefix}-${var.environment}-nginx-probe"
   }
+
+/*  # HTTP Settings for Grafana
+  backend_http_settings {
+    name                  = "${var.prefix}-${var.environment}-grafana-https-settings"
+    cookie_based_affinity = "Disabled"
+    port                  = 443
+    protocol              = "Https"
+    request_timeout       = 120
+    host_name            = var.grafana_fqdn
+    pick_host_name_from_backend_address = false
+    probe_name           = "${var.prefix}-${var.environment}-grafana-probe"
+  } */
 
   # Health probe for NGINX
   probe {
@@ -211,6 +229,20 @@ resource "azurerm_application_gateway" "this" {
       status_code = ["200"]
     }
   }
+
+/*  # Health probe for Grafana
+  probe {
+    name                = "${var.prefix}-${var.environment}-grafana-probe"
+    protocol            = "Https"
+    path                = "/api/health"
+    host                = var.grafana_fqdn
+    interval            = 30
+    timeout             = 30
+    unhealthy_threshold = 3
+    match {
+      status_code = ["200"]
+    }
+  } */
 
   # HTTP Listener
   http_listener {
@@ -255,6 +287,35 @@ resource "azurerm_application_gateway" "this" {
       backend_address_pool_name  = "${var.prefix}-${var.environment}-nginx-backend"
       backend_http_settings_name = "${var.prefix}-${var.environment}-nginx-http-settings"
     }
+
+    # Observability routing rule
+
+    path_rule {
+      name                       = "grafana-rule"
+      paths                      = ["/grafana", "/grafana/*"]
+      redirect_configuration_name = "${var.prefix}-${var.environment}-grafana-redirect"
+    }
+
+    path_rule {
+      name                       = "loki-rule"
+      paths                      = ["/loki", "/loki/*"]
+      backend_address_pool_name  = "${var.prefix}-${var.environment}-nginx-backend"
+      backend_http_settings_name = "${var.prefix}-${var.environment}-nginx-http-settings"
+    }
+
+    path_rule {
+      name                       = "tempo-rule"
+      paths                      = ["/tempo", "/tempo/*"]
+      backend_address_pool_name  = "${var.prefix}-${var.environment}-nginx-backend"
+      backend_http_settings_name = "${var.prefix}-${var.environment}-nginx-http-settings"
+    }
+
+    path_rule {
+      name                       = "prometheus-rule"
+      paths                      = ["/prometheus", "/prometheus/*"]
+      backend_address_pool_name  = "${var.prefix}-${var.environment}-nginx-backend"
+      backend_http_settings_name = "${var.prefix}-${var.environment}-nginx-http-settings"
+    }
   }
 
   # HTTP to HTTPS redirect
@@ -263,6 +324,45 @@ resource "azurerm_application_gateway" "this" {
     redirect_type        = "Permanent"
     target_listener_name = "${var.prefix}-${var.environment}-listener-https"
   }
+
+  # Rewrite rule for Grafana
+  redirect_configuration {
+    name               = "${var.prefix}-${var.environment}-grafana-redirect"
+    redirect_type      = "Permanent"
+    target_url         = "https://${var.grafana_fqdn}"
+    include_path       = false
+    include_query_string = true
+  }
+
+/*  # Rewrite rule for Grafana
+  rewrite_rule_set {
+    name = "${var.prefix}-${var.environment}-grafana-rewrite"
+
+    rewrite_rule {
+      name          = "grafana-path-rewrite"
+      rule_sequence = 100
+
+      condition {
+        variable    = "var_uri_path"
+        pattern     = "^/grafana(/.*)?$"
+        ignore_case = true
+    }
+
+      url {
+        path = "{var_uri_path_1}"
+    }
+
+      request_header_configuration {
+        header_name  = "X-Forwarded-Prefix"
+        header_value = "/grafana"
+    }
+
+      request_header_configuration {
+        header_name  = "X-Forwarded-Proto"
+        header_value = "https"
+    }
+  }
+} */
 
   # HTTP request routing rule (redirect to HTTPS)
   request_routing_rule {
