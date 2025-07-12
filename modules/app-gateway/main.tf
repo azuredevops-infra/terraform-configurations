@@ -182,14 +182,8 @@ resource "azurerm_application_gateway" "this" {
   # Backend pool pointing to NGINX internal load balancer
   backend_address_pool {
     name         = "${var.prefix}-${var.environment}-nginx-backend"
-    ip_addresses = ["10.0.1.6"]
+    ip_addresses = ["10.0.1.5"]
   }
-
-/* #Grafana backend pool
-  backend_address_pool {
-    name = "${var.prefix}-${var.environment}-grafana-backend"
-    fqdns = [var.grafana_fqdn]
-  } */
 
   # HTTP Settings for NGINX
   backend_http_settings {
@@ -199,29 +193,17 @@ resource "azurerm_application_gateway" "this" {
     port                  = 80
     protocol              = "Http"
     request_timeout       = 60
-    host_name            = "harorbcomm.d01.hdcss.com"
+    host_name            = "genesis-azure.d01.hdcss.com"
     pick_host_name_from_backend_address = false
     probe_name           = "${var.prefix}-${var.environment}-nginx-probe"
   }
-
-/*  # HTTP Settings for Grafana
-  backend_http_settings {
-    name                  = "${var.prefix}-${var.environment}-grafana-https-settings"
-    cookie_based_affinity = "Disabled"
-    port                  = 443
-    protocol              = "Https"
-    request_timeout       = 120
-    host_name            = var.grafana_fqdn
-    pick_host_name_from_backend_address = false
-    probe_name           = "${var.prefix}-${var.environment}-grafana-probe"
-  } */
 
   # Health probe for NGINX
   probe {
     name                = "${var.prefix}-${var.environment}-nginx-probe"
     protocol            = "Http"
     path                = "/healthz"
-    host                = "harorbcomm.d01.hdcss.com"
+    host                = "genesis-azure.d01.hdcss.com"
     interval            = 30
     timeout             = 30
     unhealthy_threshold = 3
@@ -229,20 +211,6 @@ resource "azurerm_application_gateway" "this" {
       status_code = ["200"]
     }
   }
-
-/*  # Health probe for Grafana
-  probe {
-    name                = "${var.prefix}-${var.environment}-grafana-probe"
-    protocol            = "Https"
-    path                = "/api/health"
-    host                = var.grafana_fqdn
-    interval            = 30
-    timeout             = 30
-    unhealthy_threshold = 3
-    match {
-      status_code = ["200"]
-    }
-  } */
 
   # HTTP Listener
   http_listener {
@@ -333,36 +301,6 @@ resource "azurerm_application_gateway" "this" {
     include_path       = false
     include_query_string = true
   }
-
-/*  # Rewrite rule for Grafana
-  rewrite_rule_set {
-    name = "${var.prefix}-${var.environment}-grafana-rewrite"
-
-    rewrite_rule {
-      name          = "grafana-path-rewrite"
-      rule_sequence = 100
-
-      condition {
-        variable    = "var_uri_path"
-        pattern     = "^/grafana(/.*)?$"
-        ignore_case = true
-    }
-
-      url {
-        path = "{var_uri_path_1}"
-    }
-
-      request_header_configuration {
-        header_name  = "X-Forwarded-Prefix"
-        header_value = "/grafana"
-    }
-
-      request_header_configuration {
-        header_name  = "X-Forwarded-Proto"
-        header_value = "https"
-    }
-  }
-} */
 
   # HTTP request routing rule (redirect to HTTPS)
   request_routing_rule {

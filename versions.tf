@@ -23,16 +23,13 @@ terraform {
   }
   required_version = ">= 1.5.0"
 
-  backend "local" {
-    path = "terraform.tfstate"
-  }
-/*
+
   backend "remote" {
     organization = "oorja_terraform"
     workspaces {
       name = "aks-infra2"
     }
-  } */
+  }
 }
 
 provider "azurerm" {
@@ -62,7 +59,6 @@ provider "helm" {
     cluster_ca_certificate = base64decode(module.aks.admin_kubeconfig.cluster_ca_certificate)
   }
 }
-
 
 /*
 provider "kubernetes" {
