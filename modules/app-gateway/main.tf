@@ -22,7 +22,8 @@ resource "azurerm_user_assigned_identity" "appgw" {
   tags                = var.tags
 }
 
-# WAF Policy
+# WAF Policy (WAF not supported in Basic SKU)
+/*
 resource "azurerm_web_application_firewall_policy" "this" {
   count               = var.enable_waf ? 1 : 0
   name                = "${var.prefix}-${var.environment}-waf-policy"
@@ -78,7 +79,8 @@ resource "azurerm_web_application_firewall_policy" "this" {
       match_values       = ["192.0.2.0/24"] # Example malicious IP range - modify as needed
     }
   }
-}
+} 
+*/
 
 # Get current client configuration
 data "azurerm_client_config" "current" {}
@@ -151,12 +153,13 @@ resource "azurerm_application_gateway" "this" {
   location            = var.location
   tags                = var.tags
   enable_http2        = true
-  firewall_policy_id  = var.enable_waf ? azurerm_web_application_firewall_policy.this[0].id : null
+  #firewall_policy_id  = var.enable_waf ? azurerm_web_application_firewall_policy.this[0].id : null
 
+#Basic SKU
   sku {
-    name     = var.enable_waf ? "WAF_v2" : "Standard_v2"
-    tier     = var.enable_waf ? "WAF_v2" : "Standard_v2"
-    capacity = 2
+    name     = "Standard_v2"  # Options: Standard_Small, Standard_Medium, Standard_Large
+    tier     = "Standard_v2"
+    capacity = 2                 # Fixed capacity (no autoscaling)
   }
 
   gateway_ip_configuration {
@@ -243,7 +246,7 @@ resource "azurerm_application_gateway" "this" {
     # ArgoCD routing rule
     path_rule {
       name                       = "argocd-rule"
-      paths                      = ["/admin", "/admin/*"]
+      paths                      = ["/admin", "/admin/*", "/api", "/api/*"]
       backend_address_pool_name  = "${var.prefix}-${var.environment}-nginx-backend"
       backend_http_settings_name = "${var.prefix}-${var.environment}-nginx-http-settings"
     }
