@@ -165,11 +165,7 @@ module "monitoring" {
   log_analytics_workspace_sku = var.log_analytics_workspace_sku
   retention_in_days           = var.log_retention_in_days
   alert_email                 = var.alert_email
-  enable_grafana              = var.enable_grafana
-  enable_prometheus           = var.enable_prometheus
   enable_defender             = var.enable_defender
-  grafana_admin_users  = var.grafana_admin_users
-  grafana_viewer_users = var.grafana_viewer_users
   tags                        = var.tags
 }
 
@@ -188,7 +184,6 @@ module "app_gateway" {
   key_vault_id            = module.key_vault.key_vault_id
   enable_waf              = var.enable_waf
   waf_mode                = var.waf_mode
-  grafana_fqdn            = var.grafana_fqdn
   tags                    = var.tags
 }
 
@@ -220,16 +215,6 @@ module "helm" {
   enable_mimir             = var.enable_mimir
   observability_namespace  = var.observability_namespace
   
-  /* template_vars   = merge(
-    var.helm_template_vars,
-    {
-      acr_login_server = module.acr.login_server
-      key_vault_uri    = module.key_vault.key_vault_uri
-      certificates     = module.key_vault.certificates
-    } 
-
-  )*/
-
   # Cluster information
   cluster_name         = module.aks.cluster_name
   resource_group_name  = azurerm_resource_group.this.name
@@ -244,12 +229,26 @@ module "helm" {
   enable_nginx_ingress        = var.enable_nginx_ingress
   enable_cert_manager         = var.enable_cert_manager
   enable_external_dns         = var.enable_external_dns
-  enable_prometheus_stack     = var.enable_prometheus_stack
   enable_argocd              = var.enable_argocd
   enable_velero = var.enable_velero
   enable_cluster_autoscaler  = var.enable_cluster_autoscaler
   enable_keda                = var.enable_keda
   enable_azure_key_vault_csi = var.enable_azure_key_vault_csi
+
+  # Open Source Grafana Configuration
+  enable_opensource_grafana    = var.enable_opensource_grafana
+  grafana_domain              = var.grafana_domain
+  grafana_admin_password      = var.grafana_admin_password
+  grafana_storage_size        = var.grafana_storage_size
+  grafana_resources           = var.grafana_resources
+
+  # Open Source Prometheus Configuration
+  enable_opensource_prometheus = var.enable_opensource_prometheus
+  prometheus_retention        = var.prometheus_retention
+  prometheus_storage_size     = var.prometheus_storage_size
+  prometheus_resources        = var.prometheus_resources
+  prometheus_alertmanager_enabled = var.prometheus_alertmanager_enabled
+  prometheus_alertmanager_resources = var.prometheus_alertmanager_resources
 
   # Velero configuration (if using Helm instead of separate module)
   velero_storage_account = var.enable_velero ? module.storage.storage_account_name : ""

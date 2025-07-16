@@ -198,46 +198,77 @@ resource "helm_release" "external_dns" {
 
 # Prometheus monitoring stack
 resource "helm_release" "kube_prometheus_stack" {
-  count            = var.enable_prometheus_stack ? 1 : 0
+  count            = var.enable_opensource_prometheus || var.enable_opensource_grafana ? 1 : 0
   name             = "kube-prometheus-stack"
   repository       = "https://prometheus-community.github.io/helm-charts"
   chart            = "kube-prometheus-stack"
   namespace        = var.monitoring_namespace
   create_namespace = true
-  version          = var.prometheus_stack_version
-  timeout          = 600
+  version          = "55.5.0"
+  timeout          = 1200
 
   values = [
     yamlencode({
+      # Grafana Configuration
       grafana = {
-        enabled = var.prometheus_grafana_enabled
+        enabled = var.enable_opensource_grafana
+        adminPassword = var.grafana_admin_password
+        
+        # Proper subpath configuration
+        "grafana.ini" = {
+          server = {
+            domain = var.grafana_domain
+            root_url = "https://${var.grafana_domain}/grafana/"  # Note the trailing slash
+            serve_from_sub_path = true
+          }
+        }
+        
         service = {
-          type = var.prometheus_grafana_service_type
+          type = "ClusterIP"
+          port = 80
         }
-        adminPassword = var.prometheus_grafana_admin_password
+        
         persistence = {
-          enabled = var.prometheus_grafana_persistence_enabled
-          size = var.prometheus_grafana_persistence_size
+          enabled = true
+          size = var.grafana_storage_size
+          storageClassName = "default"
         }
-        resources = var.prometheus_grafana_resources
-        # Add Mimir as a data source to Grafana
-        additionalDataSources = var.enable_mimir ? [
-          {
+        
+        resources = var.grafana_resources
+        
+        # Add data sources
+        additionalDataSources = concat(
+          var.enable_loki ? [{
+            name = "Loki"
+            type = "loki"
+            url = "http://loki-gateway.${var.observability_namespace}.svc.cluster.local"
+            access = "proxy"
+          }] : [],
+          var.enable_tempo ? [{
+            name = "Tempo"
+            type = "tempo"
+            url = "http://tempo.${var.observability_namespace}.svc.cluster.local:3200"
+            access = "proxy"
+          }] : [],
+          var.enable_mimir ? [{
             name = "Mimir"
             type = "prometheus"
             url = "http://mimir-nginx.${var.observability_namespace}.svc.cluster.local"
             access = "proxy"
-            isDefault = false
-            jsonData = {
-              timeInterval = "30s"
-              queryTimeout = "60s"
-            }
-          }
-        ] : []
+          }] : []
+        )
       }
+      
+      # Prometheus Configuration
       prometheus = {
+        enabled = var.enable_opensource_prometheus
         prometheusSpec = {
           retention = var.prometheus_retention
+          
+          # Proper subpath configuration
+          externalUrl = "https://${var.grafana_domain}/prometheus/"  # Note the trailing slash
+          routePrefix = "/prometheus"
+          
           storageSpec = {
             volumeClaimTemplate = {
               spec = {
@@ -247,56 +278,81 @@ resource "helm_release" "kube_prometheus_stack" {
                     storage = var.prometheus_storage_size
                   }
                 }
+                storageClassName = "default"
               }
             }
           }
           resources = var.prometheus_resources
-          #Remote write configuration to send metrics to Mimir
-          remoteWrite = var.enable_mimir ? [
-            {
-              url = "http://mimir-nginx.${var.observability_namespace}.svc.cluster.local/api/v1/push"
-              name = "mimir"
-              writeRelabelConfigs = [
-                {
-                  sourceLabels = ["__name__"]
-                  regex = "up|prometheus_build_info|prometheus_config_last_reload_successful|prometheus_notifications_.*|prometheus_rule_.*"
-                  action = "drop"
-                },
-                {
-                  sourceLabels = ["__name__"]
-                  regex = "prometheus_.*"
-                  action = "drop"
-                }
-              ]
-              queueConfig = {
-                capacity = 10000
-                maxShards = 1000
-                minShards = 1
-                maxSamplesPerSend = 2000
-                batchSendDeadline = "5s"
-                minBackoff = "30ms"
-                maxBackoff = "100ms"
-              }
-              metadataConfig = {
-                send = true
-                sendInterval = "30s"
-              }
-            }
-          ] : []
+          
+          # Remote write to Mimir if enabled
+          remoteWrite = var.enable_mimir ? [{
+            url = "http://mimir-nginx.${var.observability_namespace}.svc.cluster.local/api/v1/push"
+            name = "mimir"
+            writeRelabelConfigs = [{
+              sourceLabels = ["__name__"]
+              regex = "prometheus_.*"
+              action = "drop"
+            }]
+          }] : []
+        }
+        
+        service = {
+          type = "ClusterIP"
+          port = 9090
         }
       }
+      
+      # Alertmanager Configuration
       alertmanager = {
         enabled = var.prometheus_alertmanager_enabled
         alertmanagerSpec = {
+          storage = {
+            volumeClaimTemplate = {
+              spec = {
+                accessModes = ["ReadWriteOnce"]
+                resources = {
+                  requests = {
+                    storage = "2Gi"
+                  }
+                }
+                storageClassName = "default"
+              }
+            }
+          }
           resources = var.prometheus_alertmanager_resources
+          
+          # Subpath configuration for alertmanager
+          externalUrl = "https://${var.grafana_domain}/alertmanager/"
+          routePrefix = "/alertmanager"
         }
+      }
+      
+      # Essential components
+      nodeExporter = {
+        enabled = true
+      }
+      
+      kubeStateMetrics = {
+        enabled = true
+      }
+      
+      # Disable components you don't need
+      kubeEtcd = {
+        enabled = false
+      }
+      
+      kubeScheduler = {
+        enabled = false
+      }
+      
+      kubeControllerManager = {
+        enabled = false
       }
     })
   ]
 
   depends_on = [var.cluster_dependency]
 }
-
 
 # Velero for backup (if not using the separate backup module)
 resource "helm_release" "velero" {

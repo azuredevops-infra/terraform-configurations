@@ -30,6 +30,40 @@ variable "cluster_dependency" {
   default     = null
 }
 
+variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = ""
+}
+
+variable "helm_releases" {
+  description = "Map of Helm releases to deploy"
+  type = map(object({
+    repository       = string
+    chart            = string
+    version          = optional(string)
+    namespace        = string
+    create_namespace = optional(bool, true)
+    sets             = optional(map(string), {})
+    values_file      = optional(string, "")
+    values_yaml      = optional(string, "")
+    values           = optional(list(string), [])
+  }))
+  default = {}
+}
+
+variable "template_values" {
+  description = "Enable templating for values files"
+  type        = bool
+  default     = true
+}
+
+variable "template_vars" {
+  description = "Variables to pass to helm values templates"
+  type        = map(string)
+  default     = {}
+}
+
 # Nginx Ingress Controller
 variable "enable_nginx_ingress" {
   description = "Enable Nginx Ingress Controller"
@@ -53,18 +87,6 @@ variable "nginx_ingress_replica_count" {
   description = "Number of nginx ingress replicas"
   type        = number
   default     = 2
-}
-
-variable "nginx_ingress_service_type" {
-  description = "Service type for nginx ingress"
-  type        = string
-  default     = "LoadBalancer"
-}
-
-variable "nginx_ingress_service_annotations" {
-  description = "Service annotations for nginx ingress"
-  type        = map(string)
-  default     = {}
 }
 
 variable "nginx_ingress_resources" {
@@ -211,57 +233,46 @@ variable "external_dns_tolerations" {
   default     = []
 }
 
-# Prometheus Stack
-variable "enable_prometheus_stack" {
-  description = "Enable Prometheus monitoring stack"
-  type        = bool
-  default     = false
-}
-
+# Monitoring Namespace
 variable "monitoring_namespace" {
   description = "Namespace for monitoring components"
   type        = string
   default     = "monitoring"
 }
 
-variable "prometheus_stack_version" {
-  description = "Version of kube-prometheus-stack chart"
+variable "observability_namespace" {
+  description = "Namespace where observability stack is deployed"
   type        = string
-  default     = "54.0.1"
+  default     = "observability"
 }
 
-variable "prometheus_grafana_enabled" {
-  description = "Enable Grafana in prometheus stack"
+# Open Source Grafana
+variable "enable_opensource_grafana" {
+  description = "Enable Grafana in kube-prometheus-stack"
   type        = bool
-  default     = true
+  default     = false
 }
 
-variable "prometheus_grafana_service_type" {
-  description = "Service type for Grafana"
+variable "grafana_domain" {
+  description = "Domain for Grafana access"
   type        = string
-  default     = "ClusterIP"
+  default     = "genesis-azure.d01.hdcss.com"
 }
 
-variable "prometheus_grafana_admin_password" {
+variable "grafana_admin_password" {
   description = "Admin password for Grafana"
   type        = string
   default     = "admin123"
   sensitive   = true
 }
 
-variable "prometheus_grafana_persistence_enabled" {
-  description = "Enable persistence for Grafana"
-  type        = bool
-  default     = true
-}
-
-variable "prometheus_grafana_persistence_size" {
-  description = "Storage size for Grafana persistence"
+variable "grafana_storage_size" {
+  description = "Storage size for Grafana"
   type        = string
   default     = "10Gi"
 }
 
-variable "prometheus_grafana_resources" {
+variable "grafana_resources" {
   description = "Resources for Grafana"
   type        = map(any)
   default = {
@@ -276,10 +287,17 @@ variable "prometheus_grafana_resources" {
   }
 }
 
+# Open Source Prometheus
+variable "enable_opensource_prometheus" {
+  description = "Enable Prometheus in kube-prometheus-stack"
+  type        = bool
+  default     = false
+}
+
 variable "prometheus_retention" {
-  description = "Retention period for Prometheus"
+  description = "Prometheus data retention period"
   type        = string
-  default     = "30d"
+  default     = "15d"
 }
 
 variable "prometheus_storage_size" {
@@ -289,7 +307,7 @@ variable "prometheus_storage_size" {
 }
 
 variable "prometheus_resources" {
-  description = "Resources for Prometheus"
+  description = "Resources for Prometheus server"
   type        = map(any)
   default = {
     requests = {
@@ -304,13 +322,13 @@ variable "prometheus_resources" {
 }
 
 variable "prometheus_alertmanager_enabled" {
-  description = "Enable Alertmanager"
+  description = "Enable Prometheus Alertmanager"
   type        = bool
   default     = true
 }
 
 variable "prometheus_alertmanager_resources" {
-  description = "Resources for Alertmanager"
+  description = "Resources for Prometheus Alertmanager"
   type        = map(any)
   default = {
     requests = {
@@ -322,6 +340,25 @@ variable "prometheus_alertmanager_resources" {
       memory = "128Mi"
     }
   }
+}
+
+# Observability Stack Components
+variable "enable_loki" {
+  description = "Enable Loki for log aggregation"
+  type        = bool
+  default     = false
+}
+
+variable "enable_tempo" {
+  description = "Enable Tempo for distributed tracing"
+  type        = bool
+  default     = false
+}
+
+variable "enable_mimir" {
+  description = "Enable Mimir for long-term metrics storage"
+  type        = bool
+  default     = false
 }
 
 # ArgoCD
@@ -663,50 +700,4 @@ variable "azure_key_vault_csi_resources" {
       memory = "200Mi"
     }
   }
-}
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-  default     = ""
-}
-
-variable "helm_releases" {
-  description = "Map of Helm releases to deploy"
-  type = map(object({
-    repository       = string
-    chart            = string
-    version          = optional(string)
-    namespace        = string
-    create_namespace = optional(bool, true)
-    sets             = optional(map(string), {})
-    values_file      = optional(string, "")
-    values_yaml      = optional(string, "")
-    values           = optional(list(string), [])
-  }))
-  default = {}
-}
-
-variable "template_values" {
-  description = "Enable templating for values files"
-  type        = bool
-  default     = true
-}
-
-variable "template_vars" {
-  description = "Variables to pass to helm values templates"
-  type        = map(string)
-  default     = {}
-}
-
-variable "enable_mimir" {
-  description = "Enable Mimir integration with Prometheus"
-  type        = bool
-  default     = false
-}
-
-variable "observability_namespace" {
-  description = "Namespace where observability stack is deployed"
-  type        = string
-  default     = "observability"
 }

@@ -41,18 +41,6 @@ variable "alert_email" {
   default     = "admin@example.com"
 }
 
-variable "enable_grafana" {
-  description = "Enable Azure Managed Grafana"
-  type        = bool
-  default     = false
-}
-
-variable "enable_prometheus" {
-  description = "Enable Azure Monitor managed Prometheus"
-  type        = bool
-  default     = false
-}
-
 variable "enable_defender" {
   description = "Enable Microsoft Defender for Cloud"
   type        = bool
@@ -63,16 +51,4 @@ variable "tags" {
   description = "A map of tags to add to all resources"
   type        = map(string)
   default     = {}
-}
-
-variable "grafana_admin_users" {
-  description = "List of user object IDs to grant Grafana Admin access"
-  type        = list(string)
-  default     = []
-}
-
-variable "grafana_viewer_users" {
-  description = "List of user object IDs to grant Grafana Viewer access"
-  type        = list(string)
-  default     = []
 }

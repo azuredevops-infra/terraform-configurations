@@ -281,40 +281,140 @@ variable "alert_email" {
   default     = "admin@example.com"
 }
 
-variable "enable_grafana" {
-  description = "Enable Azure Managed Grafana"
-  type        = bool
-  default     = true
-}
-
-variable "enable_grafana_datasources" {
-  description = "Enable automatic Grafana data source configuration"
-  type        = bool
-  default     = true
-}
-
-variable "grafana_admin_users" {
-  description = "List of user object IDs to grant Grafana Admin access"
-  type        = list(string)
-  default     = []
-}
-
-variable "grafana_viewer_users" {
-  description = "List of user object IDs to grant Grafana Viewer access"
-  type        = list(string)
-  default     = []
-}
-
-variable "enable_prometheus" {
-  description = "Enable Azure Monitor managed Prometheus"
-  type        = bool
-  default     = true
-}
-
 variable "enable_defender" {
   description = "Enable Microsoft Defender for Cloud"
   type        = bool
   default     = true
+}
+
+# Open Source Grafana Configuration
+variable "enable_opensource_grafana" {
+  description = "Enable open-source Grafana deployment in cluster"
+  type        = bool
+  default     = false
+}
+
+variable "enable_opensource_prometheus" {
+  description = "Enable open-source Prometheus deployment in cluster"
+  type        = bool
+  default     = false
+}
+
+# Grafana Configuration Variables
+variable "grafana_admin_password" {
+  description = "Admin password for open-source Grafana"
+  type        = string
+  default     = "admin123"
+  sensitive   = true
+}
+
+variable "grafana_domain" {
+  description = "Domain for Grafana access (for ingress)"
+  type        = string
+  default     = "genesis-azure.d01.hdcss.com"
+}
+
+variable "grafana_path" {
+  description = "Path for Grafana access"
+  type        = string
+  default     = "/grafana"
+}
+
+variable "grafana_storage_size" {
+  description = "Storage size for Grafana persistence"
+  type        = string
+  default     = "10Gi"
+}
+
+variable "grafana_resources" {
+  description = "Resource limits for Grafana"
+  type = object({
+    requests = object({
+      cpu    = string
+      memory = string
+    })
+    limits = object({
+      cpu    = string
+      memory = string
+    })
+  })
+  default = {
+    requests = {
+      cpu    = "100m"
+      memory = "128Mi"
+    }
+    limits = {
+      cpu    = "500m"
+      memory = "512Mi"
+    }
+  }
+}
+
+# Prometheus Configuration Variables
+variable "prometheus_retention" {
+  description = "Prometheus data retention period"
+  type        = string
+  default     = "15d"
+}
+
+variable "prometheus_storage_size" {
+  description = "Prometheus storage size"
+  type        = string
+  default     = "50Gi"
+}
+
+variable "prometheus_resources" {
+  description = "Resource limits for Prometheus server"
+  type = object({
+    requests = object({
+      cpu    = string
+      memory = string
+    })
+    limits = object({
+      cpu    = string
+      memory = string
+    })
+  })
+  default = {
+    requests = {
+      cpu    = "200m"
+      memory = "400Mi"
+    }
+    limits = {
+      cpu    = "1000m"
+      memory = "2Gi"
+    }
+  }
+}
+
+variable "prometheus_alertmanager_enabled" {
+  description = "Enable Prometheus Alertmanager"
+  type        = bool
+  default     = true
+}
+
+variable "prometheus_alertmanager_resources" {
+  description = "Resource limits for Prometheus Alertmanager"
+  type = object({
+    requests = object({
+      cpu    = string
+      memory = string
+    })
+    limits = object({
+      cpu    = string
+      memory = string
+    })
+  })
+  default = {
+    requests = {
+      cpu    = "10m"
+      memory = "32Mi"
+    }
+    limits = {
+      cpu    = "100m"
+      memory = "128Mi"
+    }
+  }
 }
 
 # Network Security
@@ -830,10 +930,4 @@ variable "enable_otel_collector" {
   description = "Enable OpenTelemetry Collector"
   type        = bool
   default     = true
-}
-
-variable "grafana_fqdn" {
-  description = "Grafana FQDN for Application Gateway routing"
-  type        = string
-  default     = ""
 }

@@ -17,9 +17,3 @@ output "appgw_subnet_id" {
   description = "The ID of the Application Gateway subnet"
   value       = azurerm_subnet.appgw.id
 }
-
-/*
-output "waf_policy_id" {
-  description = "The ID of the WAF policy"
-  value       = var.enable_waf ? azurerm_web_application_firewall_policy.this[0].id : null
-} */

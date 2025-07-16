@@ -262,9 +262,10 @@ resource "azurerm_application_gateway" "this" {
     # Observability routing rule
 
     path_rule {
-      name                       = "grafana-rule"
-      paths                      = ["/grafana", "/grafana/*"]
-      redirect_configuration_name = "${var.prefix}-${var.environment}-grafana-redirect"
+    name                       = "grafana-rule"
+    paths                      = ["/grafana", "/grafana/*"]
+    backend_address_pool_name  = "${var.prefix}-${var.environment}-nginx-backend"
+    backend_http_settings_name = "${var.prefix}-${var.environment}-nginx-http-settings"
     }
 
     path_rule {
@@ -296,14 +297,6 @@ resource "azurerm_application_gateway" "this" {
     target_listener_name = "${var.prefix}-${var.environment}-listener-https"
   }
 
-  # Rewrite rule for Grafana
-  redirect_configuration {
-    name               = "${var.prefix}-${var.environment}-grafana-redirect"
-    redirect_type      = "Permanent"
-    target_url         = "https://${var.grafana_fqdn}"
-    include_path       = false
-    include_query_string = true
-  }
 
   # HTTP request routing rule (redirect to HTTPS)
   request_routing_rule {
