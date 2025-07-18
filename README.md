@@ -1,4 +1,4 @@
-# Azure AKS Infrastructure Terraform Module
+# Azure Terraform Configurations Module
 
 This comprehensive Terraform module creates and manages a production-ready Azure Kubernetes Service (AKS) cluster along with all necessary supporting infrastructure, security components, observability stack, and operational tools.
 
