@@ -563,18 +563,6 @@ tflint
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 👥 Authors
-
-- Platform Engineering Team
-- Infrastructure Team
-
-## 📞 Support
-
-For issues and questions:
-- Create an issue in this repository
-- Contact the Platform Engineering team
-- Check the troubleshooting section above
-
 ---
 
 **Note**: This module is designed for production use but always review and test configurations in a development environment first.
