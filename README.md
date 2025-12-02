@@ -197,7 +197,7 @@ This comprehensive Terraform module creates and manages a production-ready Azure
 
 3. **SSH Key Pair** for VM access
 
-4. ### Required Secrets
+### Required Secrets
 
 | Secret | Scope | Description | Example |
 |--------|-------|-------------|---------|
